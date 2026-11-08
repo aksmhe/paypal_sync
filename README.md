@@ -49,15 +49,40 @@ So sehen die Texte aus:
 
 ### Mit frappe_docker (eigenes Image)
 
-1. **Sicherung** erstellen:
+#### Vorher: Platzhalter ermitteln
+
+In den Befehlen unten stehen Platzhalter in spitzen Klammern, z. B. `<site>`. Diese werden durch **eure** Werte ersetzt, **ohne** die spitzen Klammern.
+Alle Befehle in dieser Tabelle **zeigen nur etwas an und ändern nichts**. Man führt sie auf dem Server als der Benutzer aus, der Docker bedienen darf.
+
+| Platzhalter | Bedeutung | So findet man ihn heraus | Beispiel |
+|---|---|---|---|
+| `<backend-container>` | Name des Containers, in dem ERPNext läuft | `docker ps --format '{{.Names}}' \| grep backend` | `erpnext-backend-1` |
+| `<site>` | Name der ERPNext-Site, meist die Internetadresse ohne `https://` | `docker exec <backend-container> ls sites`: Der Ordnername, der wie eine Adresse aussieht. `apps.json`, `apps.txt`, `assets` und `common_site_config.json` gehören **nicht** dazu. | `erp.example.com` |
+| `<image>` und alter Tag | Image, mit dem ERPNext gerade läuft | `docker ps --format '{{.Names}}  {{.Image}}' \| grep backend`: Was **vor** dem Doppelpunkt steht, ist `<image>`, dahinter der **alte Tag**. | `erpnext-custom:16-banking` → `<image>` = `erpnext-custom`, alter Tag = `16-banking` |
+| `<neuer-tag>` | frei wählbarer Name für das neue Image. Er sollte sich vom alten unterscheiden, damit der Rückweg offen bleibt. | selbst festlegen | `16-paypal` |
+| `<projekt>` | Name des Docker-Compose-Projekts | `docker inspect <backend-container> --format '{{ index .Config.Labels "com.docker.compose.project" }}'` | `erpnext` |
+| `<compose-datei>` | Datei, in der steht, welches Image die Container nutzen | `docker inspect <backend-container> --format '{{ index .Config.Labels "com.docker.compose.project.config_files" }}'` | `/home/benutzer/erpnext.yaml` |
+| `<frappe_docker-ordner>` | Ordner mit `apps.json` und dem Unterordner `images` | `find ~ -maxdepth 3 -name apps.json -path '*frappe_docker*'`: Der Ordner, in dem die gefundene Datei liegt. | `/home/benutzer/frappe_docker` |
+
+> 💡 **Tipp:** Am besten alle Werte einmal ermitteln und in eine Notiz schreiben. Danach kann man die Befehle unten fertig zusammensetzen und Schritt für Schritt einfügen.
+
+#### Installation Schritt für Schritt
+
+1. **Sicherung** erstellen. Am Ende erscheint eine „Backup Summary“:
    ```bash
    docker exec <backend-container> bench --site <site> backup --with-files
    ```
-2. In der `apps.json` diese Zeile **ergänzen**. Die vorhandenen Einträge bleiben stehen:
+2. Eine **Kopie der `apps.json`** anlegen und sie danach ansehen:
+   ```bash
+   cd <frappe_docker-ordner>
+   cp apps.json apps.json.vor-paypal
+   cat apps.json
+   ```
+   Dann diese Zeile als **letzten Eintrag** ergänzen, z. B. mit `nano apps.json`. Die vorhandenen Einträge bleiben stehen. Achtung: Zwischen den Einträgen steht ein Komma, nach dem letzten keins.
    ```json
    {"url": "https://github.com/aksmhe/paypal_sync", "branch": "main"}
    ```
-3. Image **neu bauen**, z. B.:
+3. Image **neu bauen**, im `<frappe_docker-ordner>`. Das dauert etwa 15–30 Minuten. Steht `FRAPPE_BRANCH` auf `version-16`, ist das für ERPNext 16 richtig. Für ERPNext 15 nimmt man `version-15`.
    ```bash
    docker build \
      --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
@@ -66,19 +91,39 @@ So sehen die Texte aus:
      --tag=<image>:<neuer-tag> \
      --file=images/layered/Containerfile .
    ```
-4. Neues Image **prüfen**. `paypal_sync` muss in der Liste stehen:
+4. Neues Image **prüfen**. Alle bisherigen Apps **und** `paypal_sync` müssen in der Liste stehen:
    ```bash
    docker run --rm <image>:<neuer-tag> ls apps
    ```
-5. In der Compose-Datei auf den neuen Tag umstellen und neu starten:
+5. Eine **Kopie der Compose-Datei** anlegen und nachsehen, ob der alte Tag darin steht:
    ```bash
+   cp <compose-datei> <compose-datei>.vor-paypal
+   grep -n "<image>:<alter-tag>" <compose-datei>
+   ```
+   Dann auf den neuen Tag umstellen und neu starten. ERPNext ist dabei 1–2 Minuten nicht erreichbar:
+   ```bash
+   sed -i 's/<image>:<alter-tag>/<image>:<neuer-tag>/g' <compose-datei>
    docker compose -p <projekt> -f <compose-datei> up -d
    ```
-6. App in die Site **installieren**:
+6. App in die Site **installieren** und prüfen:
    ```bash
    docker exec <backend-container> bench --site <site> install-app paypal_sync
    docker exec <backend-container> bench --site <site> migrate
+   docker exec <backend-container> bench --site <site> list-apps
    ```
+   In der Liste muss jetzt `paypal_sync` stehen. Nach dem Neustart muss man sich im Browser neu bei ERPNext anmelden.
+
+#### Rückweg, falls etwas nicht klappt
+
+- **Vor Schritt 6:** einfach wieder auf das alte Image umstellen:
+  ```bash
+  sed -i 's/<image>:<neuer-tag>/<image>:<alter-tag>/g' <compose-datei>
+  docker compose -p <projekt> -f <compose-datei> up -d
+  ```
+- **Nach Schritt 6:** die App zuerst wieder entfernen, dann wie oben zurückstellen:
+  ```bash
+  docker exec <backend-container> bench --site <site> uninstall-app paypal_sync --yes
+  ```
 
 ### Mit bench (klassische Installation)
 
