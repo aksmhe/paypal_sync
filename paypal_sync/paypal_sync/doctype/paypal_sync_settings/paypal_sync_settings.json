@@ -1,0 +1,111 @@
+{
+ "actions": [],
+ "creation": "2026-11-08 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "sandbox",
+  "client_id",
+  "client_secret",
+  "column_break_1",
+  "bank_account",
+  "start_date",
+  "section_status",
+  "last_sync_until",
+  "last_sync_on",
+  "last_result"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "description": "Wenn aktiv, holt ERPNext alle 6 Stunden neue PayPal-Umsätze.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Automatischer Abruf aktiv"
+  },
+  {
+   "default": "0",
+   "description": "Nur zum Testen mit einem PayPal-Sandbox-Konto.",
+   "fieldname": "sandbox",
+   "fieldtype": "Check",
+   "label": "Sandbox (Testumgebung)"
+  },
+  {
+   "description": "Aus dem PayPal-Entwicklerbereich (App mit aktivierter Transaction Search).",
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client-ID"
+  },
+  {
+   "fieldname": "client_secret",
+   "fieldtype": "Password",
+   "label": "Secret"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Bankkonto in ERPNext, auf dem die PayPal-Umsätze landen.",
+   "fieldname": "bank_account",
+   "fieldtype": "Link",
+   "label": "Bankkonto PayPal",
+   "options": "Bank Account"
+  },
+  {
+   "description": "Ab diesem Tag werden Umsätze geholt (PayPal liefert höchstens 3 Jahre zurück).",
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Umsätze ab"
+  },
+  {
+   "fieldname": "section_status",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "last_sync_until",
+   "fieldtype": "Datetime",
+   "label": "Abgerufen bis (UTC)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_on",
+   "fieldtype": "Datetime",
+   "label": "Letzter Abruf am",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_result",
+   "fieldtype": "Small Text",
+   "label": "Letztes Ergebnis",
+   "read_only": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-08 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "PayPal Sync",
+ "name": "PayPal Sync Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Accounts Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
