@@ -1,0 +1,27 @@
+MIT-Lizenz (deutsche Übersetzung)
+
+Copyright (c) 2026 AffiKSys
+
+Hinweis: Dies ist eine inoffizielle Übersetzung zum besseren Verständnis.
+Rechtlich verbindlich ist allein der englische Originaltext in der Datei license.txt.
+
+Hiermit wird jeder Person, die eine Kopie dieser Software und der zugehörigen
+Dokumentationsdateien (die „Software“) erhält, unentgeltlich die Erlaubnis
+erteilt, ohne Einschränkung mit der Software zu handeln. Dazu gehört ohne
+Einschränkung das Recht, Kopien der Software zu benutzen, zu kopieren, zu
+verändern, zusammenzuführen, zu veröffentlichen, zu verbreiten, zu
+unterlizenzieren und/oder zu verkaufen. Personen, denen die Software
+überlassen wird, darf dies ebenfalls gestattet werden. Dafür gilt folgende
+Bedingung:
+
+Der obige Urheberrechtsvermerk und dieser Erlaubnisvermerk müssen in allen
+Kopien oder wesentlichen Teilen der Software enthalten sein.
+
+DIE SOFTWARE WIRD OHNE JEDE AUSDRÜCKLICHE ODER STILLSCHWEIGENDE GEWÄHRLEISTUNG
+BEREITGESTELLT. DAZU GEHÖRT AUCH, OHNE DARAUF BESCHRÄNKT ZU SEIN, KEINE
+GEWÄHRLEISTUNG DER MARKTGÄNGIGKEIT, DER EIGNUNG FÜR EINEN BESTIMMTEN ZWECK UND
+DER NICHTVERLETZUNG VON RECHTEN DRITTER. IN KEINEM FALL HAFTEN DIE AUTOREN
+ODER URHEBERRECHTSINHABER FÜR ANSPRÜCHE, SCHÄDEN ODER SONSTIGE VERPFLICHTUNGEN,
+OB AUS VERTRAG, UNERLAUBTER HANDLUNG ODER ANDERWEITIG, DIE SICH AUS DER
+SOFTWARE, IHRER NUTZUNG ODER DEM SONSTIGEN UMGANG MIT DER SOFTWARE ERGEBEN
+ODER DAMIT IN ZUSAMMENHANG STEHEN.

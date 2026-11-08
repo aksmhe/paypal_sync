@@ -222,4 +222,5 @@ Unter **Bank Transaction Rule** kann man die wiederkehrenden Fälle automatisier
 
 ## Lizenz
 
-MIT, siehe [license.txt](license.txt)
+MIT, siehe [license.txt](license.txt) (englisches Original, rechtlich verbindlich).
+Deutsche Übersetzung zum besseren Verständnis: [license_de.txt](license_de.txt)
