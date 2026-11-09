@@ -23,7 +23,7 @@ Danach werden sie wie Bankumsätze im **Bank Reconciliation Tool** abgeglichen. 
 10. [Sicherheit](#10-sicherheit)
 11. [Versionen](#versionen)
 
-Die Installation umfasst auch das [Update auf eine neue Version](#update-auf-eine-neue-version) und das [Hochladen auf GitHub](#dateien-auf-github-hochladen-für-änderungen-am-code).
+Die Installation umfasst auch das [Update auf eine neue Version](#update-auf-eine-neue-version).
 
 ---
 
@@ -179,38 +179,6 @@ docker exec <backend-container> bench --site <site> migrate
 ```
 
 Das alte Image erst löschen, wenn die neue Version ein paar Tage sauber läuft: `docker image rm <image>:<alter-tag>`.
-
-#### Dateien auf GitHub hochladen (für Änderungen am Code)
-
-Beim Hochladen über die GitHub-Webseite landen Dateien leicht im falschen Ordner. Die App muss **genau** so aufgebaut sein:
-
-```
-paypal_sync/                     ← oberste Ebene des Repositorys
-├── README.md
-├── license.txt
-├── license_de.txt
-├── pyproject.toml
-└── paypal_sync/                 ← die App
-    ├── __init__.py              ← enthält die Versionsnummer
-    ├── hooks.py
-    ├── modules.txt
-    ├── patches.txt
-    ├── sync.py
-    └── paypal_sync/             ← das Modul „PayPal Sync“
-        ├── __init__.py          ← muss vorhanden sein!
-        └── doctype/
-            ├── __init__.py
-            └── paypal_sync_settings/
-                ├── __init__.py
-                ├── paypal_sync_settings.js
-                ├── paypal_sync_settings.json
-                └── paypal_sync_settings.py
-```
-
-- **Erst in den richtigen Ordner klicken**, dann **Add file → Upload files**. GitHub lädt immer in den Ordner hoch, der oben im Pfad angezeigt wird.
-- Es gibt **zwei** Dateien `__init__.py` mit ähnlichem Pfad. Keine davon löschen. Fehlt die Datei im Modul-Ordner, bricht `migrate` ab (siehe [Fehlerbehebung](#9-fehlerbehebung)).
-- Bei **Commit changes** eine kurze Beschreibung eintragen, z. B. `0.1.1: PayPal-Code nicht mehr als Zahlungsweise`. Die Versionshistorie findet man unter **Commits** (Uhr-Symbol über der Dateiliste).
-- Bei jeder Änderung die Versionsnummer in `paypal_sync/__init__.py` erhöhen.
 
 ### Mit bench (klassische Installation)
 
@@ -387,7 +355,7 @@ Die Regel gilt für **alle** Bankkonten. Das schadet nicht, weil nur Umsätze au
 | Umsätze fehlen | Verzug bei PayPal oder offene Zahlung | Ein paar Stunden später erneut abrufen |
 | Probelauf: *0 neue Buchungen, 0 übersprungen*, obwohl eine Zahlung da ist | Die Zahlung ist jünger als 3 Stunden, oder PayPal stellt sie noch nicht bereit | Später erneut versuchen. In PayPal prüfen, ob der Status „Abgeschlossen“ ist und nicht „Ausstehend“. |
 | Im Abgleich: *Zahlungsweise: T0000 konnte nicht gefunden werden* | Version **0.1.0** schreibt den PayPal-Code in ein Feld, das ERPNext als Zahlungsweise übernimmt | Auf **0.1.1** aktualisieren. Bis dahin das Feld „Zahlungsweise“ im Abgleichsfenster leeren. |
-| `migrate` bricht ab mit *TypeError: expected str, bytes or os.PathLike object, not NoneType* | Die Datei `paypal_sync/paypal_sync/__init__.py` fehlt auf GitHub (oft beim Hochladen versehentlich gelöscht) | Zurück aufs alte Image (siehe [Update](#update-auf-eine-neue-version)), die Datei auf GitHub wieder anlegen und mit `--no-cache` neu bauen |
+| `migrate` bricht ab mit *TypeError: expected str, bytes or os.PathLike object, not NoneType* | Die Datei `paypal_sync/paypal_sync/__init__.py` fehlt im Repository | Zurück aufs alte Image (siehe [Update](#update-auf-eine-neue-version)), die Datei wieder anlegen und mit `--no-cache` neu bauen |
 | Neues Image enthält noch die alte Version | Docker hat die App aus dem Zwischenspeicher genommen | Mit `--no-cache` neu bauen |
 
 ---
