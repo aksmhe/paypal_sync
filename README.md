@@ -21,6 +21,9 @@ Danach werden sie wie Bankumsätze im **Bank Reconciliation Tool** abgeglichen. 
 8. [Grenzen der PayPal-Schnittstelle](#8-grenzen-der-paypal-schnittstelle)
 9. [Fehlerbehebung](#9-fehlerbehebung)
 10. [Sicherheit](#10-sicherheit)
+11. [Versionen](#versionen)
+
+Die Installation umfasst auch das [Update auf eine neue Version](#update-auf-eine-neue-version) und das [Hochladen auf GitHub](#dateien-auf-github-hochladen-für-änderungen-am-code).
 
 ---
 
@@ -125,6 +128,90 @@ Alle Befehle in dieser Tabelle **zeigen nur etwas an und ändern nichts**. Man f
   docker exec <backend-container> bench --site <site> uninstall-app paypal_sync --yes
   ```
 
+#### Update auf eine neue Version
+
+Wenn auf GitHub eine neue Version liegt (siehe [Versionen](#versionen)), wird das Image neu gebaut. `install-app` braucht man dabei **nicht** noch einmal, `migrate` genügt.
+
+1. **Prüfen, ob GitHub die neue Version hat.** Es muss die erwartete Versionsnummer erscheinen:
+   ```bash
+   curl -s https://raw.githubusercontent.com/aksmhe/paypal_sync/main/paypal_sync/__init__.py
+   ```
+2. **Prüfen, welches Image gerade läuft.** Das ist ab jetzt der **alte Tag** und euer Rückweg:
+   ```bash
+   docker inspect <backend-container> --format '{{.Config.Image}}'
+   ```
+3. **Sicherung** erstellen:
+   ```bash
+   docker exec <backend-container> bench --site <site> backup --with-files
+   ```
+4. **Neu bauen, mit `--no-cache`** und einem **neuen Tag**, z. B. `16-paypal-011` für Version 0.1.1.
+   Ohne `--no-cache` nimmt Docker die alte App aus dem Zwischenspeicher, weil sich die `apps.json` nicht geändert hat.
+   ```bash
+   cd <frappe_docker-ordner>
+   docker build --no-cache \
+     --build-arg=FRAPPE_PATH=https://github.com/frappe/frappe \
+     --build-arg=FRAPPE_BRANCH=version-16 \
+     --secret=id=apps_json,src=apps.json \
+     --tag=<image>:<neuer-tag> \
+     --file=images/layered/Containerfile .
+   ```
+5. **Neues Image prüfen.** Erwartet werden drei Dinge: die neue Versionsnummer, im mittleren Teil `__init__.py` **und** `doctype`, und alle Apps.
+   ```bash
+   docker run --rm --entrypoint sh <image>:<neuer-tag> -c "cat apps/paypal_sync/paypal_sync/__init__.py; ls apps/paypal_sync/paypal_sync/paypal_sync/; ls apps"
+   ```
+6. **Umstellen und neu starten.** Nach dem `grep` muss überall der neue Tag stehen:
+   ```bash
+   sed -i 's/<image>:<alter-tag>$/<image>:<neuer-tag>/' <compose-datei>
+   grep -n "image:" <compose-datei>
+   docker compose -p <projekt> -f <compose-datei> up -d
+   ```
+7. **Datenbank anpassen und prüfen.** In der Liste muss `paypal_sync` mit der neuen Versionsnummer stehen:
+   ```bash
+   docker exec <backend-container> bench --site <site> migrate
+   docker exec <backend-container> bench --site <site> list-apps
+   ```
+
+**Rückweg:** Bricht `migrate` mit einem Fehler ab, sofort auf das alte Image zurückstellen und `migrate` dort noch einmal laufen lassen. ERPNext ist dann wieder auf dem vorherigen Stand:
+```bash
+sed -i 's/<image>:<neuer-tag>/<image>:<alter-tag>/' <compose-datei>
+docker compose -p <projekt> -f <compose-datei> up -d
+docker exec <backend-container> bench --site <site> migrate
+```
+
+Das alte Image erst löschen, wenn die neue Version ein paar Tage sauber läuft: `docker image rm <image>:<alter-tag>`.
+
+#### Dateien auf GitHub hochladen (für Änderungen am Code)
+
+Beim Hochladen über die GitHub-Webseite landen Dateien leicht im falschen Ordner. Die App muss **genau** so aufgebaut sein:
+
+```
+paypal_sync/                     ← oberste Ebene des Repositorys
+├── README.md
+├── license.txt
+├── license_de.txt
+├── pyproject.toml
+└── paypal_sync/                 ← die App
+    ├── __init__.py              ← enthält die Versionsnummer
+    ├── hooks.py
+    ├── modules.txt
+    ├── patches.txt
+    ├── sync.py
+    └── paypal_sync/             ← das Modul „PayPal Sync“
+        ├── __init__.py          ← muss vorhanden sein!
+        └── doctype/
+            ├── __init__.py
+            └── paypal_sync_settings/
+                ├── __init__.py
+                ├── paypal_sync_settings.js
+                ├── paypal_sync_settings.json
+                └── paypal_sync_settings.py
+```
+
+- **Erst in den richtigen Ordner klicken**, dann **Add file → Upload files**. GitHub lädt immer in den Ordner hoch, der oben im Pfad angezeigt wird.
+- Es gibt **zwei** Dateien `__init__.py` mit ähnlichem Pfad. Keine davon löschen. Fehlt die Datei im Modul-Ordner, bricht `migrate` ab (siehe [Fehlerbehebung](#9-fehlerbehebung)).
+- Bei **Commit changes** eine kurze Beschreibung eintragen, z. B. `0.1.1: PayPal-Code nicht mehr als Zahlungsweise`. Die Versionshistorie findet man unter **Commits** (Uhr-Symbol über der Dateiliste).
+- Bei jeder Änderung die Versionsnummer in `paypal_sync/__init__.py` erhöhen.
+
 ### Mit bench (klassische Installation)
 
 ```bash
@@ -132,6 +219,8 @@ bench get-app https://github.com/aksmhe/paypal_sync --branch main
 bench --site <site> install-app paypal_sync
 bench --site <site> migrate
 ```
+
+Update: `bench update --apps paypal_sync` bzw. `cd apps/paypal_sync && git pull`, danach `bench --site <site> migrate`.
 
 ---
 
@@ -201,6 +290,13 @@ Auf der Seite **PayPal Sync Settings** gibt es drei Knöpfe:
 
 Passt alles, den Haken **„Automatischer Abruf aktiv“** setzen und speichern. Ab dann holt ERPNext alle 6 Stunden neue Umsätze.
 
+**Gut zu wissen:**
+
+- **Ganz frische Zahlungen fehlen noch.** Die App fragt bewusst nur Umsätze ab, die **mindestens 3 Stunden** alt sind, weil PayPal sie erst dann sicher bereitstellt. Eine Testzahlung von vor 5 Minuten zeigt der Probelauf also noch nicht. Beim allerersten Mal kann es auch bis zum nächsten Tag dauern.
+- **„Letztes Ergebnis“ ist anfangs unsichtbar.** ERPNext blendet leere, schreibgeschützte Felder aus. Der Abschnitt **Status** erscheint erst nach dem ersten echten Abruf, und die Seite muss man dafür **neu laden**.
+- **„0 neu angelegt, 2 schon vorhanden“** ist in Ordnung: Die Umsätze hat ein früherer Lauf schon angelegt. Doppelt wird nichts angelegt.
+- **„Abgerufen bis (UTC)“** zeigt die Zeit in UTC, also im Winter 1 Stunde und im Sommer 2 Stunden vor der deutschen Zeit, und dazu den Verzug von 3 Stunden.
+
 ---
 
 ## 6. Buchen und Abgleichen
@@ -216,7 +312,28 @@ Die abgerufenen Umsätze erscheinen im **Bank Reconciliation Tool**. Dort das Ba
 | `T04..` Auszahlung auf Bankkonto | **1360** Geldtransit |
 | Gegenstück auf dem **Hausbank-Konto** (Lastschrift/Gutschrift „PayPal“) | **1360** Geldtransit |
 
+| Einzahlung **privat** von einem Gesellschafter oder Inhaber (z. B. Testzahlung vom privaten PayPal-Konto) | **Privateinlage**, z. B. SKR03 1890 bzw. ein eigenes Einlagekonto je Gesellschafter |
+
 **Warum Geldtransit?** Wenn Geld von der Bank zu PayPal fließt, sieht man das auf **beiden** Konten. Beide Seiten werden gegen 1360 gebucht. Das Konto 1360 geht danach wieder auf 0, und nichts wird doppelt gezählt.
+
+### Schritt für Schritt: einen Umsatz ohne Rechnung buchen
+
+Das gilt für Gebühren, Einlagen und Geldtransit, also für alles, wozu es keine Rechnung gibt.
+
+1. **Bank Reconciliation Tool** (deutsch: *Bankabgleich-Werkzeug*) öffnen, direkt erreichbar unter `/app/bank-reconciliation-tool`.
+2. Diese Felder ausfüllen:
+   - **Unternehmen:** eure Firma
+   - **Bankkonto:** das PayPal-Bankkonto
+   - **Von / Bis:** der gewünschte Zeitraum
+   - **Kontostand laut Bank:** das aktuelle PayPal-Guthaben
+
+   Dann **Daten abrufen** klicken.
+3. Beim Umsatz auf **Aktionen** klicken. Es öffnet sich das Fenster „Banktransaktion abgleichen“.
+4. **Aktion:** *Beleg erstellen*. **Dokumententyp:** von *Zahlung* auf **Buchungssatz** umstellen.
+5. **Zweites Konto:** das Gegenkonto, z. B. 4970, 1360 oder das Einlagekonto. **Parteityp** und **Partei** bleiben leer.
+6. **Buchen** klicken. „Nicht zugewiesener Betrag“ muss danach **0,00** sein.
+
+> 💡 Bei sehr kleinen Zahlungen, etwa einer Testzahlung von 0,05 €, behält PayPal den ganzen Betrag als Mindestgebühr. Zahlung und Gebühr heben sich dann auf.
 
 ---
 
@@ -231,6 +348,21 @@ Unter **Bank Transaction Rule** kann man die wiederkehrenden Fälle automatisier
 | Hausbank an/von PayPal | Any | *Regex* `(?i)paypal` (nur passend zum Text eurer Bank) | Bank Entry → 1360 |
 
 > Die letzte Regel vorher an echten Kontoauszügen prüfen. Bucht PayPal Einkäufe direkt per Lastschrift von der Bank ab, steht dort ebenfalls „PayPal“.
+
+**So legt man die Gebühren-Regel an:**
+
+| Feld | Eintrag |
+|---|---|
+| Rule Name | `PayPal-Gebühren` |
+| Transaction Type | `Withdrawal` |
+| Priority | z. B. `10` |
+| Company | eure Firma |
+| Description Rules | Check `Starts With`, Value `PayPal-Gebühr` |
+| Classify As | `Bank Entry` |
+| Bank Entry Type | `Single Account` |
+| Account | `4970 - Nebenkosten des Geldverkehrs - …` |
+
+Die Regel gilt für **alle** Bankkonten. Das schadet nicht, weil nur Umsätze aus dieser App mit „PayPal-Gebühr“ beginnen. Sie greift erst bei **neuen**, noch nicht abgeglichenen Umsätzen. Im Bankabgleich steht die Buchung dann schon als Vorschlag.
 
 ---
 
@@ -253,6 +385,10 @@ Unter **Bank Transaction Rule** kann man die wiederkehrenden Fälle automatisier
 | `400 INVALID_REQUEST` | „Umsätze ab“ liegt mehr als 3 Jahre zurück | Datum anpassen |
 | *Fehler beim Abruf, siehe Error Log* | anderer Fehler | **Error Log** öffnen, Eintrag „PayPal Sync fehlgeschlagen“ ansehen |
 | Umsätze fehlen | Verzug bei PayPal oder offene Zahlung | Ein paar Stunden später erneut abrufen |
+| Probelauf: *0 neue Buchungen, 0 übersprungen*, obwohl eine Zahlung da ist | Die Zahlung ist jünger als 3 Stunden, oder PayPal stellt sie noch nicht bereit | Später erneut versuchen. In PayPal prüfen, ob der Status „Abgeschlossen“ ist und nicht „Ausstehend“. |
+| Im Abgleich: *Zahlungsweise: T0000 konnte nicht gefunden werden* | Version **0.1.0** schreibt den PayPal-Code in ein Feld, das ERPNext als Zahlungsweise übernimmt | Auf **0.1.1** aktualisieren. Bis dahin das Feld „Zahlungsweise“ im Abgleichsfenster leeren. |
+| `migrate` bricht ab mit *TypeError: expected str, bytes or os.PathLike object, not NoneType* | Die Datei `paypal_sync/paypal_sync/__init__.py` fehlt auf GitHub (oft beim Hochladen versehentlich gelöscht) | Zurück aufs alte Image (siehe [Update](#update-auf-eine-neue-version)), die Datei auf GitHub wieder anlegen und mit `--no-cache` neu bauen |
+| Neues Image enthält noch die alte Version | Docker hat die App aus dem Zwischenspeicher genommen | Mit `--no-cache` neu bauen |
 
 ---
 
@@ -262,6 +398,15 @@ Unter **Bank Transaction Rule** kann man die wiederkehrenden Fälle automatisier
 - Die PayPal-App sollte **nur** *Transaction Search* haben. Damit kann niemand über diesen Zugang Geld bewegen.
 - Zugriff auf die Einstellungen haben nur die Rollen **System Manager** und **Accounts Manager**.
 - Im Code stehen **keine** Zugangsdaten.
+
+---
+
+## Versionen
+
+| Version | Datum | Änderung |
+|---|---|---|
+| 0.1.1 | 09.11.2026 | Der PayPal-Ereigniscode wird nicht mehr als „Art der Transaktion“ gespeichert. Sonst übernahm ERPNext ihn im Abgleich als Zahlungsweise und meldete *„Zahlungsweise: T0000 konnte nicht gefunden werden“*. Der Code steht weiterhin im Buchungstext. |
+| 0.1.0 | 08.11.2026 | Erste Version |
 
 ---
 
