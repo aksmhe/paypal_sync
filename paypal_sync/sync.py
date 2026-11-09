@@ -209,7 +209,6 @@ def _insert(row, settings, company):
 			"description": row["description"],
 			"reference_number": row["reference"],
 			"transaction_id": row["transaction_id"],
-			"transaction_type": row["code"],
 			"bank_party_name": row["party_name"],
 		}
 	)
